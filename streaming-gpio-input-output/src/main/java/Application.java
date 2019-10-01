@@ -46,9 +46,6 @@ public class Application {
         // - When GPIO 15 becomes Low (button is pressed), switch on the red LED.
         timerSource.via(gpio7).to(logSink).run(mat);
         gpio15.map(state -> state == State.LOW ? State.HIGH : State.LOW).to(gpio9).run(mat);
-
-        // Wait forever
-        Thread.currentThread().join();
     }
 
 }

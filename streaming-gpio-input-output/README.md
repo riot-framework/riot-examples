@@ -1,62 +1,55 @@
-my-riot-project
+streaming-gpio-input-output
 ----------------
 
-### Project Set-Up
-**IntelliJ IDEA:** This is probably the easiest IDE to set up for SBT projects, as it has had [SBT support] for a while now. Lucky you :)
+### Preparations
+This example assumes the following has been done:
+ - connect a green LED to GND/Pin 6 and GPIO07/Pin 7, with a resistor
+ - connect a red LED to GND/Pin 6 and GPIO09/Pin 5, with a resistor
+ - connect a push-button between GND/Pin 6 and GPIO15/Pin 8
 
-**Eclipse:** To generate an Eclipse configuration file, run the following in this project's root directory:
-```
-sbt eclipse
-```
+The example runs fine without these steps, but there won't be anything visible besides the logging output. 
 
-**Maven:** To generate a Maven POM file, run the following in this project's root directory:
-```
-sbt makePom
-```
+### Code walk-through
 
+The main class, `Application`, creates a `Flow`, `Sink` and `Source` GPIO objects for pins 7, 9, and 5 on the Raspberry Pi.
+Additionally, a standard Akka Timer is set up, which will emit a `GPIOState.TOGGLE` object every second. 
+A `Sink` is define which logs everything it receives to the console.
 
-### Working with the RIoT Framework
+We then define 2 streams:
+- One in which the Timer is connected to GPIO 7: A green LED connected to this output now blinks.
+- One in which GPIO 15 is connected to GPIO 9, but where the value is inverted in-between: When the button is press, GPIO 15 is connected to Ground, and becomes Low: GPIO 9 becomes high in response, and the red LED is lit.
 
-The <code>Application</code> class in the default package is a Java main class that briefly sets up [Akka Streams][streams] for you. 
-You can then instantiate further RIoT Akka Streams components by using the RIoT builders, e.g.:
+Once the button is release, GPIO 15, which has been initialized with `withPullupResistor()` is 'pulled back' to the High state: it is connected to '+' with a resistor. GPIO 9 is set back to Low.
+```java
+public static void main(String[] args) throws InterruptedException {
+    ActorSystem system = ActorSystem.create("BlinkExample");
+    Materializer mat = ActorMaterializer.create(system);
 
-```
-// General Purpose I/O pins: Input Source, Output flow step, Output Sink
+    // You can easily make Flows, Sources, Sinks or Actors out of GPIO Pins:
+    Flow<State, State, NotUsed> gpio7 = GPIO.out(7).initiallyLow().shuttingDownLow().asFlow(system);
+    Sink<GPIO.State, NotUsed> gpio9 = GPIO.out(9).initiallyLow().shuttingDownLow().asSink(system);
+    Source<State, NotUsed> gpio15 = GPIO.in(15).withPullupResistor().asSource(system, mat);
+    // or just plain actors: system.actorOf(GPIO.out(8).asProps());
 
-Source<State, NotUsed> gpio15 =     
-        GPIO.in(15).withPullupResistor().asSource(system, mat);
+    // Now, let's set up a timer: Send a GPIOState.TOGGLE object every 500 millis
+    Source<GPIO.State, ?> timerSource = Source.tick(Duration.ZERO, Duration.ofMillis(500), GPIO.State.TOGGLE);
 
-Flow<State, State, NotUsed> gpio7 =
-        GPIO.out(7).initiallyHigh().asFlow(system);
+    // Also, we'll have a sink that logs the state returned by the GPIO flow:
+    Sink<GPIO.State, CompletionStage<Done>> logSink = Sink
+            .foreach(state -> System.out.println("GPIO 7 is now " + state));
 
-Sink<GPIO.State, NotUsed> gpio9 =
-        GPIO.out(9).initiallyLow().shuttingDownLow().asSink(system);
+    // Let's define 2 streams:
+    // - On each timer tick, toggle the green LED and log the result.
+    // - When GPIO 15 becomes Low (button is pressed), switch on the red LED.
+    timerSource.via(gpio7).to(logSink).run(mat);
+    gpio15.map(state -> state == State.LOW ? State.HIGH : State.LOW).to(gpio9).run(mat);
 
-
-
-// I2C: Raw device sink, Flow step with custom driver logic
-
-final Sink<RawI2CProtocol.Command, NotUsed> rawSink = 
-        I2C.rawDevice().onBus(1).at(0x12).asSink(system);
-
-Flow<MyDriver.InputMessage, MyDriver.OutputMessage, NotUsed> myDevice = 
-        I2C.device(myDriverConfig).onBus(1).at(MyDriver.ADDRESS).asFlow(system);
-// where 'MyDriver' is a class encapsulating the device's specific I2C protocol
-
-
-
-// SPI and more coming in future releases...
+    // Wait forever
+    Thread.currentThread().join();
+}
 ``` 
 
-These can be mixed with Akka treams components from other sources, such as the [Alpakka Project][alpakka], which contains a number of community-contributed integration components, for example an [MQTT][mqtt] sink and source.
-
-The components can then be assembled into streams and run:
-
-```
-tickSource.via(gpio7).to(logSink).run(mat);
-```
-
-### Running your code on a Raspberry Pi
+### Running this example on a Raspberry Pi
 
 RIoT comes with a tool (RIoT Control) which simplifies deployment to your Raspberry Pi. This tool is already preconfigured in this project. Set-up the name of your device and the user credentials to use for deployment in the build.sbt file:
 
@@ -65,9 +58,5 @@ riotTargets := Seq(
   riotTarget("raspberrypi", "pi", "raspberry")
 )
 ```
-Then run <code>sbt riotRun</code> to compile your code, copy it to the device, and run it locally. 
-
-Once you're happy with the result, just run <code>sbt riotInstall</code> to set up your code as a service, which will automatically start when the device boots.
-
-
-[SBT support]:https://blog.jetbrains.com/scala/2017/03/23/scala-plugin-for-intellij-idea-2017-1-cleaner-ui-sbt-shell-repl-worksheet-akka-support-and-more/
+Then connect your Device directly on a free port on your development machine, or on your local network. Then run <code>sbt riotRun</code> to compile your code, copy it to the device, and run it locally. 
+The result will appear in your console. Press 'Enter' twice to stop the Program on your Pi. 

@@ -35,9 +35,6 @@ public class Application {
 
         // On each timer tick, toggle the green LED and log the result.
         timerSource.via(gpio7).to(logSink).run(mat);
-
-        // Wait forever
-        Thread.currentThread().join();
     }
 
 }
