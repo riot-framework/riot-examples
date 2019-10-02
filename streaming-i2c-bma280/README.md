@@ -4,6 +4,7 @@ streaming-i2c-bma280
 ### Preparations
 The [BMA280] is a high resolution, compact, and reasonably-priced accelerometer.
 This example assumes you've connected yours to your Raspberry Pi as follows:
+
 - VCC to Pin 1 (3.3v)
 - GND to Pin 9 (GND)
 - SCL to Pin 3 (SCL1)
@@ -12,23 +13,23 @@ This example assumes you've connected yours to your Raspberry Pi as follows:
 - INT1, INT2, and CSB unconnected
 
 ### Code walk-through
-A RIoT GPIO object is created with a fixed value: Low. This is connected to SDO, which controls the BMA280's addess: 
+A RIoT GPIO object is created with a fixed value (①): Low. This is connected to SDO, which controls the BMA280's addess: 
 Changing it to high will make the program fail, until the address used to communicate with the BMA280 is changed accordingly.
 
-The `BMA280` class encapsulates the chip's protocol, including which commands can be issues by us, and how it is configured.
+The `BMA280` class (②) encapsulates the chip's protocol, including which commands can be issues by us, and how it is configured.
 A BMA280 object is instantiated with our settings. 
-A `Flow` objects is then set up with the BMA280 instance, which will immediately initialize the chip.
+A `Flow` objects is then set up with the BMA280 instance (③), which will immediately initialize the chip.
 
 Two sources are then set up:
 
-- One is defined based on a list of commands: SELF-TEST, then CALIBRATE (These commands are defined in the BMA280 class)
-- Additionally, an Akka Timer source is set up, which will emit a `READ` command every second. 
+- One is defined based on a list of commands (④): SELF-TEST, then CALIBRATE (These commands are defined in the BMA280 class)
+- Additionally, an Akka Timer source is set up (⑤), which will emit a `READ` command every second. 
 
-One flow is defined and started first: From the commands source, to the I2C device. The output is ignored (it's directed to `Sink.ignore()`, which does nothing).
+One flow is defined and started first (④): From the commands source, to the I2C device. The output is ignored (it's directed to `Sink.ignore()`, which does nothing).
 
 Execution continues only after all messages in the list of commands have been consumed.
 
-The second flow then goes from the Timer, to the I2C device, to the logging sink: Every second, a READ command is issued, then received by
+The second flow then goes from the Timer, to the I2C device, to the logging sink (⑥): Every second, a READ command is issued, then received by
 the device, which reacts to it by reading the values from the accelerometer, and replies with a value object containing the measurements. This object is
 then logged to the console.
 
@@ -44,29 +45,29 @@ then logged to the console.
         // BMA280.DEFAULT_ADDRESS to be used. Setting it to HIGH causes
         // BMA280.ALTERNATE_ADDRESS to be used. This allows several chips to be used on
         // one bus.
-        GPIO.out(7).fixedAt(system, State.LOW);
+     ① GPIO.out(7).fixedAt(system, State.LOW);
 
         // Configure a BMA280 device on I2C bus 1
-        BMA280 bma280config = new BMA280(
+     ② BMA280 bma280config = new BMA280(
                 BMA280Constants.AccelerometerScale.AFS_2G,
                 BMA280Constants.Bandwidth.BW_500Hz,
                 BMA280Constants.PowerMode.normal_Mode,
                 BMA280Constants.SleepDuration.sleep100ms);
 
-        Flow<BMA280.Command, BMA280.Results, NotUsed> bma280 = I2C
+     ③ Flow<BMA280.Command, BMA280.Results, NotUsed> bma280 = I2C
                 .device(bma280config)
                 .onBus(1)
                 .at(BMA280Constants.DEFAULT_ADDRESS).asFlow(system);
 
         // Send a SELF-TEST, then a CALIBRATE command to it
         List<BMA280.Command> commands = Arrays.asList(BMA280.Command.SELFTEST, BMA280.Command.CALIBRATE);
-        Source.from(commands).via(bma280).to(Sink.ignore()).run(mat);
+     ④ Source.from(commands).via(bma280).to(Sink.ignore()).run(mat);
 
         // Now, let's set up a timer: Send a READ command every 500 millis
-        Source<BMA280.Command, ?> timerSource = Source.tick(Duration.ZERO, Duration.ofSeconds(1), BMA280.Command.READ);
+     ⑤ Source<BMA280.Command, ?> timerSource = Source.tick(Duration.ZERO, Duration.ofSeconds(1), BMA280.Command.READ);
 
         // Regularly query, then print out the values measured by the BMA280
-        timerSource.via(bma280).to(logSink).run(mat);
+     ⑥ timerSource.via(bma280).to(logSink).run(mat);
     }
 ``` 
 
