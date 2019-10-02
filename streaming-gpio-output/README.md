@@ -7,11 +7,11 @@ The example runs fine without, but there won't be anything visible besides the l
 
 ### Code walk-through
 
-The main class, `Application`, creates a `Flow` objects using RIoT which controls the output of the Raspberry Pi's General Purpose I/O port number 7, which is exposed on pin 7 of the Raspberry Pi's connector.
-Additionally, a standard Akka Timer is set up, which will emit a `GPIOState.TOGGLE` object every second. 
-A `Sink` is defined which logs everything it receives to the console.
+The main class, `Application`, creates a `Flow` objects using RIoT which controls the output of the Raspberry Pi's General Purpose I/O port number 7 (①), which is exposed on pin 7 of the Raspberry Pi's connector.
+Additionally, a standard Akka Timer is set up (②), which will emit a `GPIOState.TOGGLE` object every second. 
+A `Sink` is defined (③) which logs everything it receives to the console.
 
-We then define an Akka 'stream' which connects the Timer to our GPIO object, and then to the Sink: 
+We then define an Akka 'stream' (④) which connects the Timer to our GPIO object, and then to the Sink: 
 A green LED connected to this output would now blink, and the state of the port, returned by our GPIO Object every time we change its state, is output to the console.
 
 ```java
@@ -20,17 +20,17 @@ A green LED connected to this output would now blink, and the state of the port,
         Materializer mat = ActorMaterializer.create(system);
 
         // Create a 'Flow' element that controls GPIO pin 7:
-        Flow<State, State, NotUsed> gpio7 = GPIO.out(7).initiallyLow().shuttingDownLow().asFlow(system);
+     ① Flow<State, State, NotUsed> gpio7 = GPIO.out(7).initiallyLow().shuttingDownLow().asFlow(system);
 
         // Set up a timer: Send a GPIOState.TOGGLE object every 500 millis
-        Source<GPIO.State, ?> timerSource = Source.tick(Duration.ZERO, Duration.ofMillis(500), GPIO.State.TOGGLE);
+     ② Source<GPIO.State, ?> timerSource = Source.tick(Duration.ZERO, Duration.ofMillis(500), GPIO.State.TOGGLE);
 
         // Also, we'll have a sink that logs the state returned by the GPIO flow:
-        Sink<GPIO.State, CompletionStage<Done>> logSink = Sink
+     ③ Sink<GPIO.State, CompletionStage<Done>> logSink = Sink
                 .foreach(state -> System.out.println("GPIO 7 is now " + state));
 
         // On each timer tick, toggle the green LED and log the result.
-        timerSource.via(gpio7).to(logSink).run(mat);
+     ④ timerSource.via(gpio7).to(logSink).run(mat);
     }
 ``` 
 
