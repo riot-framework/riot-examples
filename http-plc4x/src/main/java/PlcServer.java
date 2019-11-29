@@ -18,7 +18,9 @@ import org.apache.plc4x.java.opm.OPMException;
 import org.apache.plc4x.java.opm.PlcEntityManager;
 import org.apache.plc4x.java.utils.connectionpool.PooledPlcDriverManager;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Supplier;
 
 /**
  * A skeleton for a RIoT application: Create a timer that sends a "Tick" message each second, then print it to the
@@ -64,12 +66,24 @@ public class PlcServer extends AllDirectives {
     }
 
     private Route postStatusLights() {
-        try {
+        return entity(Jackson.unmarshaller(MyStatusLights.class), state -> {
 
-            return null;
-        } catch (OPMException e) {
-            throw new RuntimeException(e);
-        }
+            CompletionStage<MyStatusLights> future = CompletableFuture.supplyAsync(new Supplier<MyStatusLights>() {
+                @Override
+                public MyStatusLights get() {
+                    try {
+                        return entityManager.write(MyStatusLights.class, connectionString, state);
+                    } catch (OPMException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            });
+
+            return onSuccess(future, done ->
+                    completeOKWithFuture(future, Jackson.marshaller())
+            );
+
+        });
     }
 
 }

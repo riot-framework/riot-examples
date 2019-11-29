@@ -11,8 +11,15 @@ import java.util.Objects;
 @PlcEntity
 public class MyStatusLights {
 
+    public MyStatusLights() {
+        this.red = false;
+        this.yellow = false;
+        this.green = false;
+    }
+
+
     @JsonCreator
-    MyStatusLights(@JsonProperty("red") boolean red,
+    public MyStatusLights(@JsonProperty("red") boolean red,
                    @JsonProperty("yellow") boolean yellow,
                    @JsonProperty("green") boolean green) {
 
