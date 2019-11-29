@@ -1,75 +1,33 @@
 http-plc4x
 ----------------
 
-### Project Set-Up
-**IntelliJ IDEA:** This is probably the easiest IDE to set up for SBT projects, as it has had [SBT support] for a while now. Lucky you :)    
-After opening the project, open the 'Even Log' (lower-right corner of the screen) and click on the 'Import sbt project' link.
-Run configurations have been generated for you: To start your application, connect your raspberry pi
-to your development machine, then from the "Run" menu, select "Run..." and "Run on Raspberry Pi". 
+### Preparations
+This example shows how to connect to a Siemens S7 PLC through Ethernet (e.g. using a CP 243-1), and expose its functionality as JSON webservices.
+ 
+Depending on what model you are using, a different connection string will be needed, and at the very least you will need 
+to correct the IP address used in the example code, in the `PlcServer` class:
 
-
-**Maven:** To generate a Maven POM file, run the following in this project's root directory:
 ```
-sbt makePom
+    static final String connectionString = "s7://192.168.1.222/0/2?controller-type=S7_300";
 ```
+`s7` refers to the Siemens S7 protocol. The IP Address is that of your 'Communication Processor'. The two next components
+are the Rack and Slot address of your siemens PLC (this part will be different for other PLC types). This will depend on
+the type and configuration of your PLC, but some common values are:
+- S7 200: Rack 0, Slot 0
+- S7 300: Rack 0, Slot 0
+- S7 400: Depending on the configuration
+- S7 1200: Rack 0, Slot 0 or Slot 1
+- S7 1500: Rack 0, Slot 0 or Slot 1
 
+Refer to the [PLC4X documentation](http://plc4x.apache.org/plc4j/plc4j-protocols/developers/implementing-drivers.html) for 
+more information about connection strings. The [Sharp7 project page](http://snap7.sourceforge.net/sharp7.html) has some
+good information about the settings for various types of S7 CPUs.
+
+The example assumes that a 'Control Box', containing 4 buttons, is connected to the inputs I1.0 through I1.3, and that a 
+stack of 3 status lights will be connected to outputs Q0.0 through Q0.2, but it will work without either: If no switches 
+are connected to the inputs, their state will always be "low". If no lights are connected to the outut, the state of the
+lights can still be seen on the S7 PLC's diagnostic lights.
+
+![example setup](example.jpg)
 
 ### Working with the RIoT Framework
-
-The <code>Application</code> class in the default package is a Java main class that briefly sets up [Akka Streams][streams] for you. 
-You can then instantiate further RIoT Akka Streams components by using the RIoT builders, e.g.:
-
-```
-// General Purpose I/O pins: Input Source, Output flow step, Output Sink
-
-Source<State, NotUsed> gpio15 =     
-        GPIO.in(15).withPullupResistor().asSource(system, mat);
-
-Flow<State, State, NotUsed> gpio7 =
-        GPIO.out(7).initiallyHigh().asFlow(system);
-
-Sink<GPIO.State, NotUsed> gpio9 =
-        GPIO.out(9).initiallyLow().shuttingDownLow().asSink(system);
-
-
-
-// I2C: Raw device sink, Flow step with custom driver logic
-
-final Sink<RawI2CProtocol.Command, NotUsed> rawSink = 
-        I2C.rawDevice().onBus(1).at(0x12).asSink(system);
-
-Flow<MyDriver.InputMessage, MyDriver.OutputMessage, NotUsed> myDevice = 
-        I2C.device(myDriverConfig).onBus(1).at(MyDriver.ADDRESS).asFlow(system);
-// where 'MyDriver' is a class encapsulating the device's specific I2C protocol
-
-
-
-// SPI and more coming in future releases...
-``` 
-
-These can be mixed with Akka treams components from other sources, such as the [Alpakka Project][alpakka], which contains a number of community-contributed integration components, for example an [MQTT][mqtt] sink and source.
-
-The components can then be assembled into streams and run:
-
-```
-tickSource.via(gpio7).to(logSink).run(mat);
-```
-
-### Running your code on a Raspberry Pi
-
-RIoT comes with a tool (RIoT Control) which simplifies deployment to your Raspberry Pi. This tool is already preconfigured in this project. Set-up the name of your device and the user credentials to use for deployment in the build.sbt file:
-
-```
-riotTargets := Seq(
-  riotTarget("raspberrypi", "pi", "raspberry")
-)
-```
-Then run <code>sbt riotRun</code> to compile your code, copy it to the device, and run it locally. 
-
-Once you're happy with the result, just run <code>sbt riotInstall</code> to set up your code as a service, which will automatically start when the device boots.
-
-
-[SBT support]:https://blog.jetbrains.com/scala/2017/03/23/scala-plugin-for-intellij-idea-2017-1-cleaner-ui-sbt-shell-repl-worksheet-akka-support-and-more/
-[streams]: https://doc.akka.io/docs/akka/current/stream/stream-quickstart.html
-[alpakka]: https://doc.akka.io/docs/alpakka/current/
-[mqtt]: https://doc.akka.io/docs/alpakka/current/mqtt.html
