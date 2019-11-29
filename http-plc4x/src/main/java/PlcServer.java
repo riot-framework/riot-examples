@@ -23,8 +23,12 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 
 /**
- * A skeleton for a RIoT application: Create a timer that sends a "Tick" message each second, then print it to the
- * console.
+ * Example of using Akka HTTP to expose the input and output ports of a PLC. 2 paths will accept requests: <ul>
+ * <li> /controlbox: Responds to GET requests only. A JSON representation of our device will be sent as a response.
+ * </li>
+ * <li> /status: Responds to POST requests containing a Status Lights object. Sets the corresponding outputs on our PLC
+ * to high (42V) or low (0V) accordingly.</li>
+ * </ul>
  */
 public class PlcServer extends AllDirectives {
 
@@ -46,10 +50,15 @@ public class PlcServer extends AllDirectives {
         Thread.currentThread().join();
     }
 
+    /**
+     * Sets up 2 routes: One to '/controlbox', which will respond to GET requests only. A JSON representation of our
+     * device will be sent as a response. Another to 'status', whill will only respond to POST requests. The contents of
+     * the payload will be decoded to a Status Lights object, and the corresponding outputs on our PLC will be set high
+     * (42V) or low (0V) accordingly.
+     *
+     * @return an Akka HTTP Route object
+     */
     private Route createRoute() {
-        Configuration conf = new SystemConfiguration();
-        conf.setProperty("org.apache.plc4x.java.opm.entity_manager.read_timeout", 2500);
-
         return concat(
                 path("controlbox", () -> get(
                         () -> getControlBoxState())
@@ -60,15 +69,33 @@ public class PlcServer extends AllDirectives {
         );
     }
 
+    /**
+     * Asynchronously fetches the value of the inputs mapped within the 'MyControlBox' class and returns them.
+     *
+     * @return an Akka HTTP Route object
+     */
     private Route getControlBoxState() {
-        try {
-            final MyControlBox state = entityManager.read(MyControlBox.class, connectionString);
-            return completeOK(state, Jackson.marshaller());
-        } catch (OPMException e) {
-            throw new RuntimeException(e);
-        }
+        CompletionStage<MyControlBox> future = CompletableFuture.supplyAsync(new Supplier<MyControlBox>() {
+            @Override
+            public MyControlBox get() {
+                try {
+                    return entityManager.read(MyControlBox.class, connectionString);
+                } catch (OPMException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+
+        return onSuccess(future, done ->
+                completeOKWithFuture(future, Jackson.marshaller())
+        );
     }
 
+    /**
+     * Asynchronously sets the value of the outputs mapped in the 'MyStatusLights' class, and returns them.
+     *
+     * @return an Akka HTTP Route object
+     */
     private Route postStatusLights(MyStatusLights state) {
         CompletionStage<MyStatusLights> future = CompletableFuture.supplyAsync(new Supplier<MyStatusLights>() {
             @Override
