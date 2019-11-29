@@ -51,8 +51,12 @@ public class PlcServer extends AllDirectives {
         conf.setProperty("org.apache.plc4x.java.opm.entity_manager.read_timeout", 2500);
 
         return concat(
-                path("controlbox", () -> get(this::getControlBoxState)),
-                path("status", () -> post(this::postStatusLights))
+                path("controlbox", () -> get(
+                        () -> getControlBoxState())
+                ),
+                path("status", () -> post(
+                        () -> entity(Jackson.unmarshaller(MyStatusLights.class), this::postStatusLights))
+                )
         );
     }
 
@@ -65,25 +69,21 @@ public class PlcServer extends AllDirectives {
         }
     }
 
-    private Route postStatusLights() {
-        return entity(Jackson.unmarshaller(MyStatusLights.class), state -> {
-
-            CompletionStage<MyStatusLights> future = CompletableFuture.supplyAsync(new Supplier<MyStatusLights>() {
-                @Override
-                public MyStatusLights get() {
-                    try {
-                        return entityManager.write(MyStatusLights.class, connectionString, state);
-                    } catch (OPMException e) {
-                        throw new RuntimeException(e);
-                    }
+    private Route postStatusLights(MyStatusLights state) {
+        CompletionStage<MyStatusLights> future = CompletableFuture.supplyAsync(new Supplier<MyStatusLights>() {
+            @Override
+            public MyStatusLights get() {
+                try {
+                    return entityManager.write(MyStatusLights.class, connectionString, state);
+                } catch (OPMException e) {
+                    throw new RuntimeException(e);
                 }
-            });
-
-            return onSuccess(future, done ->
-                    completeOKWithFuture(future, Jackson.marshaller())
-            );
-
+            }
         });
+
+        return onSuccess(future, done ->
+                completeOKWithFuture(future, Jackson.marshaller())
+        );
     }
 
 }
