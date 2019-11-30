@@ -8,11 +8,12 @@ Depending on what model you are using, a different connection string will be nee
 to correct the IP address used in the example code, in the `PlcServer` class:
 
 ```
-    static final String connectionString = "s7://192.168.1.222/0/2?controller-type=S7_300";
+static final String connectionString = "s7://192.168.1.222/0/2?controller-type=S7_300";
 ```
 `s7` refers to the Siemens S7 protocol. The IP Address is that of your 'Communication Processor'. The two next components, `0` and `2`,
 are the Rack and Slot address of your siemens PLC (this part will be different for other PLC types). This will depend on
 the type and configuration of your PLC, but some common values are:
+
 - S7 200: Rack 0, Slot 0
 - S7 300: Rack 0, Slot 0
 - S7 400: Depending on the configuration
@@ -27,6 +28,7 @@ more information about connection strings. Also, the [Sharp7 project page](http:
 good information about the settings for various types of S7 CPUs.
 
 The example assumes that:
+
 - a 'Control Box', containing 4 buttons, is connected to the inputs I1.0 through I1.3 (as seen in the picture below)
 - a stack of 3 status lights will be connected to outputs Q0.0 through Q0.2 (missing in the picture)
 
@@ -185,6 +187,7 @@ specifies the field and type to use. For S7 PLCs, the fields can be:
 - `%V` for data from Data Block 1, e.g. "V100" for the hundredth byte in an S200's memory, or the hundredth byte in the S300's data block 1. 
  
 The type is specified after a colon (`:`).  For S7 PLCs, these can be:
+
 - BOOL (1 bit input as java boolean)
 - BYTE (1 byte as 8 bits)
 - WORD (2 byte as 16 bits)
@@ -253,3 +256,33 @@ public class MyStatusLights {
 ```
 
 Combining both annotations allows the mapping to a JSON object and to the PLCs fields to change independently of each other.
+
+### Testing the web services
+
+To test the `controlbox` service, simply point your browser to `http://localhost:8080/controlbox`, you should see the following result:
+
+```json
+{
+  emergency_stop: true,
+  high: false,
+  start: false,
+  stop: false
+}
+```
+
+To control the lights on the light tower (or to just toggle the outputs on your S7), use an HTTP test client such as Postman, and send a POST 
+request to `http://localhost:8080/status` with the following raw payload, of type `application/json':
+
+```json
+{
+"red": false,
+"yellow": true,
+"green": false
+}
+```
+
+Or use the Curl program from a terminal window:
+
+```shell script
+curl -H "Content-Type: application/json" -X POST -d '{ "red": false, "yellow": true, "green": false }' http://localhost:8080/status
+```
