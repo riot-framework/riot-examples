@@ -72,7 +72,7 @@ meaning it's `true` when the emergency stop button is pressed, false otherwise.
 
 This same object will then be serialized using JSON when accessed through the web service (e.g. by pointing your browser to
 `http://localhost:8080/controlbox`), and the result will look like this:
-```json
+```
 {
   emergency_stop: true,
   high: false,
