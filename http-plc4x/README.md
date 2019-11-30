@@ -273,7 +273,7 @@ To test the `controlbox` service, simply point your browser to `http://localhost
 To control the lights on the light tower (or to just toggle the outputs on your S7), use an HTTP test client such as Postman, and send a POST 
 request to `http://localhost:8080/status` with the following raw payload, of type `application/json':
 
-```json
+```
 {
 "red": false,
 "yellow": true,
