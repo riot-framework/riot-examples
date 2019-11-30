@@ -128,8 +128,9 @@ private Route createRoute() {
 }
 ```
 
-The `getControlBoxState()` methods execute PLC4X's `EntityManager.read(...)` method asynchronously (①), and return a `Future` (②) that will
+The `getControlBoxState()` method executes PLC4X's `EntityManager.read(...)` method asynchronously (①), and return a `Future` (②) that will
 complete successfully and yield an HTTP response 200 if and when the read method completes successfully:
+
 ```java 
 private Route getControlBoxState() {
     CompletionStage<MyControlBox> future = CompletableFuture.supplyAsync(new Supplier<MyControlBox>() {
@@ -149,7 +150,7 @@ private Route getControlBoxState() {
 }
 ```
 
-The `postStatusLights(state)` methods work similarly, using PLC4X's `EntityManager.write(...)` method (①), and return a `Future` (②) that will
+The `postStatusLights(state)` method works similarly, using PLC4X's `EntityManager.write(...)` method (①), and return a `Future` (②) that will
 yield an HTTP 200 response, containing the current state of the output as a JSON object (②):
 ```java
 private Route postStatusLights(MyStatusLights state) {
