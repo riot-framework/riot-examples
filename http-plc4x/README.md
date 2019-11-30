@@ -32,7 +32,7 @@ The example assumes that:
 - a 'Control Box', containing 4 buttons, is connected to the inputs I1.0 through I1.3 (as seen in the picture below)
 - a stack of 3 status lights will be connected to outputs Q0.0 through Q0.2 (missing in the picture)
 
-![example setup](example.jpg)
+![example setup](https://github.com/riot-framework/riot-examples/raw/master/http-plc4x/example.jpg)
 
 But it will work without either: If no switches  are connected to the inputs, their state will always be "low". If no lights are connected to the outut, the state of the
 lights can still be seen on the S7 PLC's diagnostic lights.
